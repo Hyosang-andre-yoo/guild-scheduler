@@ -1,209 +1,160 @@
 'use client'
 
-import { useState } from 'react'
-import { createParty } from './actions'
-
-interface Character {
-  character_name: string
-}
+import { useState } from 'form' // 혹은 React 상태 관리
+import { createClient } from '@/utils/supabase/client' // Supabase 클라이언트 경로에 맞게 조절
 
 interface PartyFormProps {
-  characters: Character[]
+  onSuccess?: () => void
 }
 
-const BOSS_LIST = [
-  { name: '이지/노멀 루시드', type: 'weekly', maxMembers: 6 },
-  { name: '하드 루시드', type: 'weekly', maxMembers: 6 },
-  { name: '하드 스우', type: 'weekly', maxMembers: 6 },
-  { name: '하드 데미안', type: 'weekly', maxMembers: 6 },
-  { name: '하드 가렌', type: 'weekly', maxMembers: 6 },
-  { name: '노멀 진힐라', type: 'weekly', maxMembers: 6 },
-  { name: '하드 진힐라', type: 'weekly', maxMembers: 6 },
-  { name: '노멀 더스크', type: 'weekly', maxMembers: 6 },
-  { name: '하드 더스크', type: 'weekly', maxMembers: 6 },
-  { name: '하드 듄켈', type: 'weekly', maxMembers: 6 },
-  { name: '노멀 듄켈', type: 'weekly', maxMembers: 6 },
-  { name: '하드 윌', type: 'weekly', maxMembers: 6 },
-  { name: '익스트림 스우', type: 'weekly', maxMembers: 6 },
-  { name: '검은 마법사', type: 'monthly', maxMembers: 6 },
-  { name: '세렌', type: 'weekly', maxMembers: 6 },
-  { name: '칼로스', type: 'weekly', maxMembers: 6 },
-  { name: '카링', type: 'weekly', maxMembers: 6 },
-  { name: '림보', type: 'weekly', maxMembers: 6 },
-]
+export default function PartyForm({ onSuccess }: PartyFormProps) {
+  const [bossName, setBossName] = useState('익스트림 스우 (주간)')
+  const [characterName, setCharacterName] = useState('보마방생')
+  const [partyType, setPartyType] = useState(false) // 고정팟 여부
+  const [difficulty, setDifficulty] = useState('Extreme')
+  const [maxMember, setMaxMember] = useState(4)
+  const [period, setPeriod] = useState('목요일 ~ 수요일 (1주차)')
+  const [memo, setMemo] = useState('')
+  const [loading, setLoading] = useState(false)
 
-export default function PartyForm({ characters }: PartyFormProps) {
-  const [selectedBoss, setSelectedBoss] = useState(BOSS_LIST[0])
-  const [isFixed, setIsFixed] = useState(false)
-  const [partyType, setPartyType] = useState<'weekly' | 'monthly'>('weekly')
-  const [selectedWeek, setSelectedWeek] = useState('1주차')
-  const [selectedMonth, setSelectedMonth] = useState('이번 달')
-  const [isLoading, setIsLoading] = useState(false)
+  const supabase = createClient()
 
-  const handleBossChange = (bossName: string) => {
-    const boss = BOSS_LIST.find((b) => b.name === bossName)
-    if (boss) {
-      setSelectedBoss(boss)
-      setPartyType(boss.type as 'weekly' | 'monthly')
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
+    setLoading(true)
 
     try {
-      setIsLoading(true)
-      await createParty(formData)
+      // Supabase 테이블에 데이터 삽입 (테이블 이름은 실제 사용하시는 이름으로 확인 필요)
+      const { error } = await supabase.from('parties').insert([
+        {
+          boss_name: bossName,
+          character_name: characterName,
+          is_fixed: partyType,
+          difficulty: difficulty,
+          max_member: Number(maxMember),
+          period: period,
+          memo: memo,
+        },
+      ])
+
+      if (error) throw error
+
+      alert('보스 파티가 성공적으로 생성되었습니다! 🚀')
+      if (onSuccess) onSuccess()
     } catch (error: any) {
-      if (error.message === 'NEXT_REDIRECT') {
-        throw error
-      }
-      alert(error.message || '파티 생성 중 오류가 발생했습니다.')
+      console.error('파티 생성 에러:', error.message)
+      alert(`파티 생성 실패: ${error.message}`)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  // 주차별 날짜 라벨 배열 계산 수정 (타입 명시)
-  const weeks: string[] = ['1주차', '2주차', '3주차', '4주차', '5주차']
-  const lastIndex: number = weeks.length - 1
-  const label: string = `${weeks[0]} ~ ${weeks[lastIndex]}`
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">보스 선택</label>
-          <select
-            name="bossName"
-            value={selectedBoss.name}
-            onChange={(e) => handleBossChange(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-          >
-            {BOSS_LIST.map((boss) => (
-              <option key={boss.name} value={boss.name}>
-                {boss.name} ({boss.type === 'monthly' ? '월간' : '주간'})
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="max-w-3xl mx-auto p-6 bg-slate-950 text-white rounded-xl border border-slate-800 shadow-xl">
+      <h2 className="text-2xl font-bold mb-6">새 보스 파티 모집하기</h2>
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 보스 선택 */}
+          <div>
+            <label className="block text-sm font-medium mb-2">보스 선택</label>
+            <select
+              value={bossName}
+              onChange={(e) => setBossName(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white"
+            >
+              <option value="익스트림 스우 (주간)">익스트림 스우 (주간)</option>
+              <option value="익스트림 카린 (주간)">익스트림 카린 (주간)</option>
+              <option value="하드 림보 (주간)">하드 림보 (주간)</option>
+            </select>
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">내 대표 캐릭터</label>
-          <select
-            name="characterName"
-            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-            required
-          >
-            {characters.map((char) => (
-              <option key={char.character_name} value={char.character_name}>
-                {char.character_name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">파티 유형</label>
-          <div className="flex items-center gap-4 pt-2">
-            <label className="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                name="isFixed"
-                checked={isFixed}
-                onChange={(e) => setIsFixed(e.target.checked)}
-                className="w-4 h-4 rounded bg-gray-900 border-gray-600 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="font-bold text-indigo-300">고정팟 여부</span>
-            </label>
+          {/* 내 대표 캐릭터 */}
+          <div>
+            <label className="block text-sm font-medium mb-2">내 대표 캐릭터</label>
+            <input
+              type="text"
+              value={characterName}
+              onChange={(e) => setCharacterName(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white"
+            />
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">난이도</label>
-          <select
-            name="difficulty"
-            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-          >
-            <option value="Normal">Normal</option>
-            <option value="Hard">Hard</option>
-            <option value="Chaos">Chaos</option>
-            <option value="Extreme">Extreme</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 파티 유형 */}
+          <div className="flex items-center space-x-2 pt-6">
+            <input
+              type="checkbox"
+              id="partyType"
+              checked={partyType}
+              onChange={(e) => setPartyType(e.target.checked)}
+              className="w-4 h-4 rounded bg-slate-900 border-slate-700"
+            />
+            <label htmlFor="partyType" className="text-sm font-medium">고정팟 여부</label>
+          </div>
+
+          {/* 난이도 */}
+          <div>
+            <label className="block text-sm font-medium mb-2">난이도</label>
+            <select
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white"
+            >
+              <option value="Extreme">Extreme</option>
+              <option value="Hard">Hard</option>
+              <option value="Normal">Normal</option>
+            </select>
+          </div>
+
+          {/* 최대 인원 */}
+          <div>
+            <label className="block text-sm font-medium mb-2">최대 인원</label>
+            <input
+              type="number"
+              value={maxMember}
+              onChange={(e) => setMaxMember(Number(e.target.value))}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white"
+            />
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">최대 인원</label>
-          <input
-            type="number"
-            name="maxMembers"
-            defaultValue={selectedBoss.maxMembers}
-            min="2"
-            max="6"
-            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-            required
-          />
-        </div>
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 주차 / 기간 선택 */}
+          <div>
+            <label className="block text-sm font-medium mb-2">주차 / 기간 선택</label>
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white"
+            >
+              <option value="목요일 ~ 수요일 (1주차)">목요일 ~ 수요일 (1주차)</option>
+            </select>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">주차 / 기간 선택</label>
-          {isFixed ? (
+          {/* 파티장 공지 및 메모 */}
+          <div>
+            <label className="block text-sm font-medium mb-2">파티장 공지 및 메모</label>
             <input
               type="text"
-              name="partyDate"
-              value={partyType === 'monthly' ? '매월 고정팟' : '매주 고정팟'}
-              readOnly
-              className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-indigo-300 font-bold"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="예: 스펙 컷 자유, 무언 팟"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white placeholder-slate-500"
             />
-          ) : partyType === 'monthly' ? (
-            <select
-              name="partyDate"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-            >
-              <option value="이번 달">이번 달 월간 보스</option>
-              <option value="다음 달">다음 달 월간 보스</option>
-            </select>
-          ) : (
-            <select
-              name="partyDate"
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-            >
-              <option value="1주차">목요일 ~ 수요일 (1주차)</option>
-              <option value="2주차">목요일 ~ 수요일 (2주차)</option>
-              <option value="3주차">목요일 ~ 수요일 (3주차)</option>
-              <option value="4주차">목요일 ~ 수요일 (4주차)</option>
-              <option value="5주차">목요일 ~ 수요일 (5주차)</option>
-            </select>
-          )}
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-300">파티장 공지 및 메모</label>
-          <input
-            type="text"
-            name="description"
-            placeholder="예: 스펙 컷 자유, 무언 팟"
-            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white"
-          />
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 font-bold py-2.5 rounded-lg transition-colors shadow-lg text-sm"
-      >
-        {isLoading ? '파티 등록 중...' : '보스 파티 생성하기 🚀'}
-      </button>
-    </form>
+        {/* 제출 버튼 */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 transition rounded-xl font-semibold text-white shadow-lg flex items-center justify-center space-x-2"
+        >
+          <span>{loading ? '생성 중...' : '보스 파티 생성하기 🚀'}</span>
+        </button>
+      </form>
+    </div>
   )
 }
