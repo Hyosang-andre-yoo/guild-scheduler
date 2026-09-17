@@ -55,14 +55,14 @@ export default async function DashboardPage({
     const charInfo = await fetchCharacterInfo(characterName)
     if (!charInfo) redirect('/dashboard?error=not-found')
 
-    // 넥슨 API 속성명 타입 호환성 처리 완료
+    // 넥슨 API 카멜 케이스 속성 에러 방지용 매핑 처리
     await supabase.from('characters').insert({
       user_id: user.id,
-      character_name: charInfo.character_name ?? charInfo.characterName,
-      world_name: charInfo.world_name ?? charInfo.worldName,
-      class_name: charInfo.class_name ?? charInfo.className,
-      character_level: charInfo.character_level ?? charInfo.characterLevel,
-      character_image: charInfo.character_image ?? charInfo.characterImage,
+      character_name: charInfo.characterName ?? charInfo.character_name,
+      world_name: charInfo.worldName ?? charInfo.world_name,
+      class_name: charInfo.className ?? charInfo.class_name,
+      character_level: charInfo.characterLevel ?? charInfo.character_level,
+      character_image: charInfo.characterImage ?? charInfo.character_image,
     })
     redirect('/dashboard?success=registered')
   }
@@ -159,7 +159,6 @@ export default async function DashboardPage({
     redirect('/dashboard?success=accepted')
   }
 
-  // 자동 만료 및 아카이브 탭 필터링 로직
   const filteredParties = parties?.filter((party: any) => {
     const status = party.status || 'recruiting'
     
