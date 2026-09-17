@@ -1,4 +1,4 @@
-const NEXON_API_KEY = process.env.NEXT_PUBLIC_NEXON_API_KEY || ''
+const NEXON_API_KEY = process.env.NEXON_API_KEY || ''
 const BASE_URL = 'https://open.api.nexon.com/maplestory/v1'
 
 export async function fetchCharacterInfo(characterName: string) {
