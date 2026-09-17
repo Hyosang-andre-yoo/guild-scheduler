@@ -55,13 +55,14 @@ export default async function DashboardPage({
     const charInfo = await fetchCharacterInfo(characterName)
     if (!charInfo) redirect('/dashboard?error=not-found')
 
+    // 넥슨 API 속성명 타입 호환성 처리 완료
     await supabase.from('characters').insert({
       user_id: user.id,
-      character_name: charInfo.characterName ?? charInfo.character_name,
-      world_name: charInfo.worldName ?? charInfo.world_name,
-      class_name: charInfo.className ?? charInfo.class_name,
-      character_level: charInfo.characterLevel ?? charInfo.character_level,
-      character_image: charInfo.characterImage ?? charInfo.character_image,
+      character_name: charInfo.character_name ?? charInfo.characterName,
+      world_name: charInfo.world_name ?? charInfo.worldName,
+      class_name: charInfo.class_name ?? charInfo.className,
+      character_level: charInfo.character_level ?? charInfo.characterLevel,
+      character_image: charInfo.character_image ?? charInfo.characterImage,
     })
     redirect('/dashboard?success=registered')
   }
@@ -162,11 +163,9 @@ export default async function DashboardPage({
   const filteredParties = parties?.filter((party: any) => {
     const status = party.status || 'recruiting'
     
-    // 일회성 파티이면서, 설정된 출발 시간이 24시간 지났는지 확인
     let isExpired = false;
     if (!party.is_fixed && party.departure_time) {
       const now = new Date()
-      // 타임존 버그를 피하기 위해 단순 문자열 비교를 위한 KST 24시간 전 시간 생성
       const yesterdayKst = new Date(now.getTime() + (9 * 60 * 60 * 1000) - (24 * 60 * 60 * 1000))
       const limitStr = yesterdayKst.toISOString().slice(0, 16)
       if (party.departure_time < limitStr) {
@@ -175,10 +174,8 @@ export default async function DashboardPage({
     }
 
     if (currentTab === 'recruiting') {
-      // 진행 탭: 고정팟이거나, 아직 만료되지 않은 파티만 표시
       return !isExpired && (status === 'recruiting' || status === 'closed')
     } else if (currentTab === 'cleared') {
-      // 아카이브 탭: 토벌 완료되었거나, 만료된 일회성 파티를 몰아넣음
       return status === 'cleared' || isExpired
     }
     return true
@@ -218,7 +215,6 @@ export default async function DashboardPage({
                 const isFull = acceptedCount >= party.max_members;
                 const partyStatus = party.status || 'recruiting';
 
-                // UI 상에서 만료 여부 확인
                 const isExpiredUI = !party.is_fixed && party.departure_time && party.departure_time < new Date(new Date().getTime() + (9 * 60 * 60 * 1000) - (24 * 60 * 60 * 1000)).toISOString().slice(0, 16);
 
                 return (
