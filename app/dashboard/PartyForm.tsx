@@ -55,7 +55,7 @@ export default function PartyForm({ characters }: PartyFormProps) {
     const firstThursday = new Date(year, month - 1, 1 + diffToThursday)
 
     const weeksLabel = ['첫째 주', '둘째 주', '셋째 주', '넷째 주', '다섯째 주']
-    const options = []
+    const options: { label: string; index: string }[] = []
 
     let currentThursday = new Date(firstThursday)
     let index = 0
@@ -73,12 +73,12 @@ export default function PartyForm({ characters }: PartyFormProps) {
     }
 
     while (options.length < 5 && options.length > 0) {
-      const lastIndex = options.length
+      const lastIndex: number = options.length
       const start = new Date(currentThursday)
       const end = new Date(start)
       end.setDate(start.getDate() + 6)
       
-      const label = `${month}월 ${weeksLabel[lastIndex]} (${start.getDate()}일 ~ ${end.getDate()}일)`
+      const label: string = `${month}월 ${weeksLabel[lastIndex] || '마지막 주'} (${start.getDate()}일 ~ ${end.getDate()}일)`
       options.push({ label, index: String(lastIndex) })
       currentThursday.setDate(currentThursday.getDate() + 7)
     }
@@ -121,11 +121,9 @@ export default function PartyForm({ characters }: PartyFormProps) {
       setIsLoading(true)
       await createParty(formData)
     } catch (error: any) {
-      // 핵심: Next.js의 정상적인 리다이렉트 요청은 알림창을 띄우지 않고 그대로 통과시킵니다.
       if (error.message === 'NEXT_REDIRECT') {
         throw error
       }
-      // 그 외의 진짜 에러(중복 생성 방지 에러 등)만 alert으로 띄웁니다.
       alert(error.message || '파티 개설 중 오류가 발생했습니다.')
     } finally {
       setIsLoading(false)
