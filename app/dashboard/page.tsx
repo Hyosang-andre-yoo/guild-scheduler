@@ -55,14 +55,16 @@ export default async function DashboardPage({
     const charInfo = await fetchCharacterInfo(characterName)
     if (!charInfo) redirect('/dashboard?error=not-found')
 
-    // 넥슨 API 카멜 케이스 속성 에러 방지용 매핑 처리
+    // 타입 에러 우회 처리
+    const info = charInfo as any
+
     await supabase.from('characters').insert({
       user_id: user.id,
-      character_name: charInfo.characterName ?? charInfo.character_name,
-      world_name: charInfo.worldName ?? charInfo.world_name,
-      class_name: charInfo.className ?? charInfo.class_name,
-      character_level: charInfo.characterLevel ?? charInfo.character_level,
-      character_image: charInfo.characterImage ?? charInfo.character_image,
+      character_name: info.characterName || info.character_name,
+      world_name: info.worldName || info.world_name,
+      class_name: info.className || info.class_name,
+      character_level: info.characterLevel || info.character_level,
+      character_image: info.characterImage || info.character_image,
     })
     redirect('/dashboard?success=registered')
   }
