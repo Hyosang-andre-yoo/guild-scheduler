@@ -121,17 +121,9 @@ export default function PartyForm({ characters }: PartyFormProps) {
 
     const formData = new FormData(e.currentTarget)
     
-    try {
-      setIsLoading(true)
-      await createParty(formData)
-    } catch (error: any) {
-      // ⭐ NEXT_REDIRECT 에러인 경우는 정상적인 페이지 이동이므로 무조건 그대로 던져줘야 합니다!
-      if (error.message === 'NEXT_REDIRECT' || error.digest?.startsWith('NEXT_REDIRECT')) {
-        throw error
-      }
-      alert(error.message || '파티 개설 중 오류가 발생했습니다.')
-      setIsLoading(false)
-    }
+    // ⭐ 서버 액션 내부에서 직접 redirect를 수행하므로 try-catch 없이 바로 호출합니다.
+    setIsLoading(true)
+    await createParty(formData)
   }
 
   // 마운트되기 전에는 빈 공간이나 기본 형태로 렌더링하여 하이드레이션 오류 방지

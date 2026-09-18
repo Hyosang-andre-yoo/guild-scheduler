@@ -52,7 +52,9 @@ export async function createParty(formData: FormData) {
     }
   ])
 
+  // ⭐ try ~ catch 안에서 redirect를 쓰지 않고, 함수 맨 마지막에 깔끔하게 호출합니다.
   revalidatePath('/dashboard')
+  redirect('/dashboard')
 }
 
 // 1. 캐릭터 삭제 액션
