@@ -27,9 +27,19 @@ export default function PartyList({
       if (!isMember && !isLeader) return false
     }
 
-    if (tab === 'recruiting') return party.status !== 'completed' && party.status !== 'expired'
-    if (tab === 'completed') return party.status === 'completed' || party.status === 'expired'
-    return true
+    // ⭐ 탭별 필터링 로직 수정
+    if (tab === 'recruiting') {
+      // '모집 / 진행 중' 탭에서는 '모집 중(recruiting)' 상태인 것만 보여줍니다.
+      // (모집 마감된 closed 상태나 완료된 completed/expired는 제외)
+      return party.status === 'recruiting'
+    }
+    
+    if (tab === 'completed') {
+      // '완료 / 만료됨' 탭에서는 모집 마감(closed), 토벌 완료(completed), 기간 만료(expired)를 모두 모아줍니다.
+      return party.status === 'closed' || party.status === 'completed' || party.status === 'expired'
+    }
+
+    return true // '전체 보기' 탭
   })
 
   const handleStatusChange = async (id: string, status: string, message: string) => {
