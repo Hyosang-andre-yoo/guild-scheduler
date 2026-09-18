@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updatePartyStatus, deleteParty, removePartyMember, updatePartySettings } from './actions'
+import { updatePartyStatus, deleteParty, removePartyMember, updatePartySettings, applyToParty } from './actions'
 
 export default function PartyList({ 
   parties, 
@@ -16,6 +16,9 @@ export default function PartyList({
 }) {
   const [tab, setTab] = useState(currentTab)
   const [editingParty, setEditingParty] = useState<any>(null)
+  
+  // ⭐ 파티 신청 모달용 상태 추가
+  const [applyingParty, setApplyingParty] = useState<any>(null)
   
   const currentUserId = myCharacters.length > 0 ? myCharacters[0].user_id : null;
 
@@ -111,7 +114,12 @@ export default function PartyList({
                         </>
                       )
                     ) : (
-                      <button onClick={() => window.alert('참여 신청 모달과 연결이 필요합니다.')} className={`px-4 py-1.5 rounded text-sm transition font-bold ${isFinished || party.status === 'closed' ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`} disabled={isFinished || party.status === 'closed'}>
+                      // ⭐ 단순 알림창(alert) 띄우던 버튼을 신청 모달 띄우기로 수정
+                      <button 
+                        onClick={() => setApplyingParty(party)} 
+                        className={`px-4 py-1.5 rounded text-sm transition font-bold ${isFinished || party.status === 'closed' ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`} 
+                        disabled={isFinished || party.status === 'closed'}
+                      >
                         {isFinished || party.status === 'closed' ? '신청 불가' : '참여 신청'}
                       </button>
                     )}
@@ -136,7 +144,6 @@ export default function PartyList({
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-200">⚔️ {member.character_name}</span>
                             
-                            {/* 조인된 characters 테이블에서 가져온 직업 및 레벨 표시 */}
                             {member.characters && (
                               <span className="text-[11px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
                                 {member.characters.class_name} | Lv.{member.characters.character_level}
@@ -169,6 +176,7 @@ export default function PartyList({
         )}
       </div>
 
+      {/* ⚙️ 기존 파티 설정 수정 팝업 */}
       {editingParty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
@@ -185,7 +193,6 @@ export default function PartyList({
               await updatePartySettings(formData)
               setEditingParty(null)
             }} className="space-y-4">
-
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
                 <select name="difficulty" defaultValue={editingParty.difficulty || 'Normal'} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
@@ -195,12 +202,10 @@ export default function PartyList({
                   <option value="Extreme">Extreme</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">최대 인원</label>
                 <input type="number" name="maxMembers" defaultValue={editingParty.max_members || editingParty.max_member || 1} min={editingParty.party_members?.length || 1} max={6} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" required />
               </div>
-
               {!editingParty.is_fixed ? (
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">출발 일정 (날짜 수정)</label>
@@ -212,15 +217,66 @@ export default function PartyList({
                   <input type="text" value={editingParty.party_date || '매주 고정팟'} disabled className="w-full bg-slate-900 border border-slate-800 text-slate-500 rounded-lg px-4 py-2 text-sm cursor-not-allowed" />
                 </div>
               )}
-
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">파티 설명 / 메모</label>
                 <input type="text" name="description" defaultValue={editingParty.description || ''} placeholder="예: 2층 좌측 / 디코 필수" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
               </div>
-
               <div className="flex gap-3 pt-4 mt-2 border-t border-slate-800">
                 <button type="button" onClick={() => setEditingParty(null)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-lg text-sm font-bold transition">취소</button>
                 <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-bold transition">저장하기</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🙋‍♂️ 신규: 파티 참여 신청 팝업 모달 */}
+      {applyingParty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">🙋‍♂️ 파티 참여 신청</h3>
+              <button onClick={() => setApplyingParty(null)} className="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+            </div>
+            
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              const formData = new FormData(e.currentTarget)
+              formData.append('partyId', applyingParty.id)
+              
+              try {
+                await applyToParty(formData)
+                setApplyingParty(null)
+              } catch (err: any) {
+                alert(err.message)
+              }
+            }} className="space-y-4">
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">참여할 내 캐릭터</label>
+                {myCharacters.length > 0 ? (
+                  <select name="characterName" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" required>
+                    {myCharacters.map(char => (
+                      <option key={char.id} value={char.character_name}>
+                        {char.character_name} ({char.class_name} | Lv.{char.character_level})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="text-sm text-red-400 bg-red-950/50 p-2 rounded border border-red-900/50">
+                    우측 사이드바에서 먼저 캐릭터를 등록해주세요.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">파티장에게 남길 메모 (선택)</label>
+                <input type="text" name="memo" placeholder="예: 비숍입니다 / 디코 가능" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
+              </div>
+
+              <div className="flex gap-3 pt-4 mt-2 border-t border-slate-800">
+                <button type="button" onClick={() => setApplyingParty(null)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-lg text-sm font-bold transition">취소</button>
+                <button type="submit" disabled={myCharacters.length === 0} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-bold transition disabled:opacity-50">신청하기</button>
               </div>
             </form>
           </div>

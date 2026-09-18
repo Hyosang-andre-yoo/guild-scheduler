@@ -21,9 +21,23 @@ export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProp
         <div className="space-y-3">
           {activeParties.length > 0 ? (
             activeParties.map((party) => {
-              // 파티장 이름 추출 (DB 구조 방어 로직 포함)
+              // 파티장 이름 추출
               const leaderName = party.leader_character || party.character_name || party.party_members?.[0]?.character_name || '파티장';
               const members = party.party_members || [];
+
+              // ⭐ 상태별 텍스트 및 뱃지 색상 지정
+              let statusText = '';
+              let statusClass = '';
+              if (party.status === 'completed') {
+                statusText = '🏆 토벌 완료';
+                statusClass = 'text-emerald-400 bg-emerald-950/50 border border-emerald-900/50';
+              } else if (party.status === 'closed') {
+                statusText = '🔒 모집 마감';
+                statusClass = 'text-slate-300 bg-slate-800 border border-slate-700';
+              } else {
+                statusText = `📢 모집 중 (${members.length || 1}/${party.max_members || party.max_member || 4}명)`;
+                statusClass = 'text-indigo-400 bg-indigo-950/50 border border-indigo-900/50';
+              }
 
               return (
                 <div key={party.id} className="bg-slate-950 border border-slate-800 p-3 rounded-lg flex flex-col gap-3">
@@ -38,8 +52,8 @@ export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProp
                         {party.party_date || party.period || '일시 미정'}
                       </span>
                     </div>
-                    <span className="text-xs text-indigo-400 font-medium bg-indigo-950/50 px-2 py-1 rounded">
-                      {party.status === 'completed' ? '🏆 토벌 완료' : `모집 중 (${members.length || 1}/${party.max_members || party.max_member || 4}명)`}
+                    <span className={`text-xs font-medium px-2 py-1 rounded ${statusClass}`}>
+                      {statusText}
                     </span>
                   </div>
 

@@ -174,7 +174,7 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                               </div>
                             )}
 
-                            {myMembership && !isLeader && formattedTime && (
+                            {myMembership && formattedTime && (
                               <button
                                 onClick={async () => {
                                   await toggleTimeConfirmation(myMembership.id, myMembership.time_confirmed)

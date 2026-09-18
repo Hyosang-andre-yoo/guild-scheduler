@@ -208,3 +208,43 @@ export async function toggleTimeConfirmation(memberId: string, currentStatus: bo
   }
   return { success: !error }
 }
+
+// 8. 파티 참여 신청 액션
+export async function applyToParty(formData: FormData) {
+  const partyId = formData.get('partyId') as string
+  const characterName = formData.get('characterName') as string
+  const memo = formData.get('memo') as string
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  // 파티가 꽉 찼는지 확인
+  const { data: party } = await supabase.from('parties').select('max_members').eq('id', partyId).single()
+  const { count } = await supabase.from('party_members').select('*', { count: 'exact' }).eq('party_id', partyId)
+
+  if (party && count !== null && count >= party.max_members) {
+    throw new Error('파티가 이미 가득 찼습니다.')
+  }
+
+  // 파티원으로 등록 (승인 대기 없이 바로 accepted 처리)
+  const { error } = await supabase
+    .from('party_members')
+    .insert([
+      {
+        party_id: partyId,
+        user_id: user.id,
+        character_name: characterName,
+        status: 'accepted', 
+        memo: memo,
+        time_confirmed: false
+      }
+    ])
+
+  if (error) {
+    console.error('Apply error:', error.message)
+    throw new Error('파티 신청 실패')
+  }
+
+  revalidatePath('/dashboard')
+}
