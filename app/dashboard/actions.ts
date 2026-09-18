@@ -177,8 +177,11 @@ export async function deleteCharacter(characterId: string) {
     .delete()
     .eq('id', characterId)
 
-  if (!error) {
-    revalidatePath('/dashboard')
+  if (error) {
+    console.error('캐릭터 삭제 오류:', error.message)
+    return { success: false, error: error.message }
   }
-  return { success: !error }
+
+  revalidatePath('/dashboard')
+  return { success: true }
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { deleteCharacter } from './actions'
 
 interface Character {
@@ -13,12 +14,21 @@ interface Character {
 }
 
 export default function CharacterManager({ characters }: { characters: Character[] }) {
+  const router = useRouter()
   const existingNickname = characters.find(c => c.discord_nickname)?.discord_nickname;
 
   // 캐릭터 삭제 핸들러
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
+    e.preventDefault() // 폼 제출 간섭 완벽 차단
+
     if (window.confirm(`정말로 '${name}' 캐릭터를 삭제하시겠습니까?\n(파티에 소속되어 있다면 파티에서도 나가지게 될 수 있습니다)`)) {
-      await deleteCharacter(id)
+      const result = await deleteCharacter(id)
+      
+      if (result.success) {
+        router.refresh() // 성공 시 화면 즉시 새로고침
+      } else {
+        window.alert(`삭제 실패: ${result.error || '알 수 없는 오류가 발생했습니다.'}`)
+      }
     }
   }
 
@@ -76,10 +86,10 @@ export default function CharacterManager({ characters }: { characters: Character
                 </div>
               </div>
 
-              {/* ⭐ 삭제 버튼 영역 (type="button" 주의: 폼 제출 방지) */}
+              {/* 삭제 버튼 영역 */}
               <button
                 type="button"
-                onClick={() => handleDelete(char.id, char.character_name)}
+                onClick={(e) => handleDelete(e, char.id, char.character_name)}
                 className="text-slate-500 hover:text-red-400 hover:bg-red-950/30 p-2 rounded transition-colors"
                 title="캐릭터 삭제"
               >
