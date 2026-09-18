@@ -5,13 +5,10 @@ interface GuildWeeklyScheduleProps {
 }
 
 export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProps) {
-  // 만료되거나 취소된 파티 제외하고 유효한 스케줄만 필터링 (최신순 정렬)
   const activeParties = parties.filter(p => p.status !== 'expired')
 
   return (
     <div className="flex flex-col gap-4">
-      
-      {/* 🟢 이번 주 스케줄 */}
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 relative overflow-hidden shadow-md">
         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
         <div className="flex justify-between items-center mb-4">
@@ -21,11 +18,13 @@ export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProp
         <div className="space-y-3">
           {activeParties.length > 0 ? (
             activeParties.map((party) => {
-              // 파티장 이름 추출
-              const leaderName = party.leader_character || party.character_name || party.party_members?.[0]?.character_name || '파티장';
+              // ⭐ 첫 번째 사람이 아니라, 진짜 파티장(status === 'leader')을 찾도록 수정
+              const leaderName = party.party_members?.find((m: any) => m.status === 'leader')?.character_name 
+                || party.leader_character 
+                || party.party_members?.[0]?.character_name 
+                || '파티장';
               const members = party.party_members || [];
 
-              // ⭐ 상태별 텍스트 및 뱃지 색상 지정
               let statusText = '';
               let statusClass = '';
               if (party.status === 'completed') {
@@ -35,13 +34,12 @@ export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProp
                 statusText = '🔒 모집 마감';
                 statusClass = 'text-slate-300 bg-slate-800 border border-slate-700';
               } else {
-                statusText = `📢 모집 중 (${members.length || 1}/${party.max_members || party.max_member || 4}명)`;
+                statusText = `📢 모집 중 (${members.filter((m:any) => m.status !== 'pending').length || 1}/${party.max_members || party.max_member || 4}명)`;
                 statusClass = 'text-indigo-400 bg-indigo-950/50 border border-indigo-900/50';
               }
 
               return (
                 <div key={party.id} className="bg-slate-950 border border-slate-800 p-3 rounded-lg flex flex-col gap-3">
-                  {/* 상단: 보스 정보 및 상태 */}
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <div>
                       <span className="text-xs font-bold bg-purple-900 text-purple-200 px-2 py-0.5 rounded mr-2">
@@ -57,14 +55,12 @@ export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProp
                     </span>
                   </div>
 
-                  {/* 하단: 참여 파티원 명단 */}
                   <div className="bg-slate-900/80 rounded-md p-2 flex flex-wrap gap-x-4 gap-y-2 text-sm border border-slate-800/50">
                     <span className="font-bold text-emerald-400 flex items-center gap-1">
                       👑 {leaderName}
                     </span>
-                    {/* 파티장을 제외한 나머지 파티원 렌더링 */}
                     {members
-                      .filter((m: any) => m.character_name !== leaderName)
+                      .filter((m: any) => m.character_name !== leaderName && m.status !== 'pending')
                       .map((member: any) => (
                         <span key={member.id} className="text-slate-300 flex items-center gap-1">
                           ⚔️ {member.character_name}
@@ -81,7 +77,6 @@ export default function GuildWeeklySchedule({ parties }: GuildWeeklyScheduleProp
           )}
         </div>
       </div>
-
     </div>
   )
 }

@@ -219,15 +219,7 @@ export async function applyToParty(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  // 파티가 꽉 찼는지 확인
-  const { data: party } = await supabase.from('parties').select('max_members').eq('id', partyId).single()
-  const { count } = await supabase.from('party_members').select('*', { count: 'exact' }).eq('party_id', partyId)
-
-  if (party && count !== null && count >= party.max_members) {
-    throw new Error('파티가 이미 가득 찼습니다.')
-  }
-
-  // 파티원으로 등록 (승인 대기 없이 바로 accepted 처리)
+  // ⭐ 바로 accepted 처리하지 않고 pending(대기) 상태로 넣습니다.
   const { error } = await supabase
     .from('party_members')
     .insert([
@@ -235,16 +227,26 @@ export async function applyToParty(formData: FormData) {
         party_id: partyId,
         user_id: user.id,
         character_name: characterName,
-        status: 'accepted', 
+        status: 'pending', 
         memo: memo,
         time_confirmed: false
       }
     ])
 
-  if (error) {
-    console.error('Apply error:', error.message)
-    throw new Error('파티 신청 실패')
-  }
+  if (error) throw new Error('파티 신청 실패')
+  revalidatePath('/dashboard')
+}
 
+// 9. 파티 가입 수락 액션
+export async function acceptPartyMember(memberId: string) {
+  const supabase = await createClient()
+  await supabase.from('party_members').update({ status: 'accepted' }).eq('id', memberId)
+  revalidatePath('/dashboard')
+}
+
+// 10. 파티 가입 거절 액션
+export async function rejectPartyMember(memberId: string) {
+  const supabase = await createClient()
+  await supabase.from('party_members').delete().eq('id', memberId)
   revalidatePath('/dashboard')
 }

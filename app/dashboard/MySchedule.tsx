@@ -12,18 +12,15 @@ interface MyScheduleProps {
 export default function MySchedule({ myCharacters, parties, currentUserId }: MyScheduleProps) {
   const [settingParty, setSettingParty] = useState<any>(null)
 
-  // 요일 및 시간 선택용 상태
-  const [selectedDayOffset, setSelectedDayOffset] = useState<string>('0') // 오늘 기준 며칠 뒤인지
-  const [selectedHour, setSelectedHour] = useState<string>('21') // 기본 밤 9시
+  const [selectedDayOffset, setSelectedDayOffset] = useState<string>('0') 
+  const [selectedHour, setSelectedHour] = useState<string>('21') 
   const [selectedMinute, setSelectedMinute] = useState<string>('00')
 
-  // 요일 옵션 계산 (오늘부터 7일간)
   const getDayOptions = () => {
     const options = []
     const days = ['일', '월', '화', '수', '목', '금', '토']
     const today = new Date()
 
-    // 한국 시간 기준 또는 로컬 기준으로 이번 주 날짜 생성
     for (let i = 0; i < 7; i++) {
       const d = new Date(today)
       d.setDate(today.getDate() + i)
@@ -40,11 +37,9 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
 
   const dayOptions = getDayOptions()
 
-  // 모달을 열 때 기존 설정된 시간이 있다면 맞추어 초기화
   const handleOpenModal = (party: any) => {
     setSettingParty(party)
     if (party.departure_time) {
-      // "YYYY-MM-DDTHH:mm" 형태 분리
       const [datePart, timePart] = party.departure_time.split('T')
       if (datePart) setSelectedDayOffset(datePart)
       if (timePart) {
@@ -111,6 +106,9 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                       const isLeader = leaderName === char.character_name
                       const myMembership = party.party_members?.find((m: any) => m.character_name === char.character_name)
                       const formattedTime = party.departure_time ? party.departure_time.replace('T', ' ') : null
+                      
+                      // 승인 완료된 멤버만 보여주기
+                      const activeMembers = party.party_members?.filter((m: any) => m.status !== 'pending') || []
 
                       return (
                         <div key={party.id} className="bg-slate-900/90 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between gap-3 relative overflow-hidden">
@@ -154,11 +152,11 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                               )}
                             </div>
 
-                            {party.party_members && party.party_members.length > 0 && (
+                            {activeMembers.length > 0 && (
                               <div className="border-t border-slate-900 pt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                                 <span className="text-slate-400 text-[11px]">파티원 확인 현황:</span>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {party.party_members.map((m: any) => (
+                                  {activeMembers.map((m: any) => (
                                     <span 
                                       key={m.id} 
                                       className={`px-2 py-0.5 rounded text-[11px] border flex items-center gap-1 ${
@@ -167,14 +165,17 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                                           : 'bg-slate-900 text-slate-400 border-slate-800'
                                       }`}
                                     >
-                                      {m.character_name} {m.time_confirmed ? '✓ 확인완료' : '· 대기중'}
+                                      {m.character_name} 
+                                      {m.characters && <span className="opacity-50">({m.characters.class_name})</span>}
+                                      {m.time_confirmed ? '✓ 완료' : '· 대기중'}
                                     </span>
                                   ))}
                                 </div>
                               </div>
                             )}
 
-                            {myMembership && formattedTime && (
+                            {/* 대기중인 멤버가 아닌 경우에만 확인 버튼 노출 */}
+                            {myMembership && myMembership.status !== 'pending' && formattedTime && (
                               <button
                                 onClick={async () => {
                                   await toggleTimeConfirmation(myMembership.id, myMembership.time_confirmed)
@@ -208,7 +209,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
         )}
       </div>
 
-      {/* ⏱️ 드롭다운 방식으로 요일/시간을 편하게 고르는 파티장 모달 */}
       {settingParty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
@@ -220,7 +220,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
             </div>
             
             <form action={async (formData) => {
-              // 숨겨진 input에 "YYYY-MM-DDTHH:mm" 조합된 값을 만들어서 서버로 전송
               const combinedDateTime = `${selectedDayOffset}T${selectedHour}:${selectedMinute}`
               formData.set('departureTime', combinedDateTime)
 
@@ -229,7 +228,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
             }} className="space-y-4">
               <input type="hidden" name="partyId" value={settingParty.id} />
 
-              {/* 1. 요일(날짜) 선택 드롭다운 */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">출발 요일 선택</label>
                 <select 
@@ -245,7 +243,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                 </select>
               </div>
 
-              {/* 2. 시간 및 분 선택 드롭다운 */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1.5">시간 (시)</label>

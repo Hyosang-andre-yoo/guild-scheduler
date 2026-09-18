@@ -27,21 +27,28 @@ export default async function DashboardPage({
   const { data: allCharacters } = await supabase.from('characters').select('*')
   const myCharacters = allCharacters?.filter((char: any) => char.user_id === user.id) || []
 
-  // ⭐ 조인 에러 방지를 위해 parties와 party_members를 안전하게 분리하여 조회
-  const { data: partiesData } = await supabase
-    .from('parties')
-    .select('*')
-    .order('id', { ascending: false })
+ // ⭐ 기존 조인 에러 우회를 유지하면서, 전체 캐릭터 정보를 가져와 수동으로 매핑합니다.
+ const { data: partiesData } = await supabase
+ .from('parties')
+ .select('*')
+ .order('id', { ascending: false })
 
-  const { data: membersData } = await supabase
-    .from('party_members')
-    .select('*')
+const { data: membersData } = await supabase
+ .from('party_members')
+ .select('*')
 
-  // 파티 데이터에 멤버 목록 매핑
-  const parties = partiesData?.map(party => ({
-    ...party,
-    party_members: membersData?.filter(m => m.party_id === party.id) || []
-  })) || []
+const { data: allChars } = await supabase
+ .from('characters')
+ .select('character_name, class_name, character_level')
+
+// 파티 데이터에 멤버 목록 및 직업/레벨 매핑
+const parties = partiesData?.map(party => ({
+ ...party,
+ party_members: membersData?.filter(m => m.party_id === party.id).map(m => {
+   const charInfo = allChars?.find(c => c.character_name === m.character_name)
+   return { ...m, characters: charInfo }
+ }) || []
+})) || []
 
   // 캐릭터 등록 및 디코 닉네임 자동 처리 로직
   const registerCharacter = async (formData: FormData) => {

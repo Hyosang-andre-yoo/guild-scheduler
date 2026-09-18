@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updatePartyStatus, deleteParty, removePartyMember, updatePartySettings, applyToParty } from './actions'
+import { updatePartyStatus, deleteParty, removePartyMember, updatePartySettings, applyToParty, acceptPartyMember, rejectPartyMember } from './actions'
 
 export default function PartyList({ 
   parties, 
@@ -16,8 +16,6 @@ export default function PartyList({
 }) {
   const [tab, setTab] = useState(currentTab)
   const [editingParty, setEditingParty] = useState<any>(null)
-  
-  // ⭐ 파티 신청 모달용 상태 추가
   const [applyingParty, setApplyingParty] = useState<any>(null)
   
   const currentUserId = myCharacters.length > 0 ? myCharacters[0].user_id : null;
@@ -25,7 +23,8 @@ export default function PartyList({
   const filteredParties = parties.filter((party) => {
     if (selectedChar !== 'all') {
       const isMember = party.party_members?.some((m: any) => m.character_name === selectedChar)
-      const leaderName = party.leader_character || party.character_name || party.party_members?.[0]?.character_name;
+      // ⭐ 파티장 찾는 로직 똑똑하게 수정
+      const leaderName = party.party_members?.find((m: any) => m.status === 'leader')?.character_name || party.leader_character || party.party_members?.[0]?.character_name;
       const isLeader = leaderName === selectedChar;
       if (!isMember && !isLeader) return false
     }
@@ -59,6 +58,13 @@ export default function PartyList({
     }
   }
 
+  const handleLeave = async (memberId: string, isPending: boolean) => {
+    const msg = isPending ? '파티 가입 신청을 취소하시겠습니까?' : '정말로 이 파티에서 탈퇴하시겠습니까?';
+    if (window.confirm(msg)) {
+      await removePartyMember(memberId)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
@@ -74,8 +80,8 @@ export default function PartyList({
       <div className="space-y-4 pt-2">
         {filteredParties.length > 0 ? (
           filteredParties.map((party) => {
-            const firstMemberName = party.party_members?.[0]?.character_name;
-            const leaderName = party.leader_character || party.character_name || firstMemberName;
+            // ⭐ 파티장 찾는 로직 수정 반영
+            const leaderName = party.party_members?.find((m: any) => m.status === 'leader')?.character_name || party.leader_character || party.party_members?.[0]?.character_name;
             const isMyParty = (currentUserId && party.user_id === currentUserId) || (leaderName && myCharacters.some(char => char.character_name === leaderName));
             const isFinished = party.status === 'completed' || party.status === 'expired';
 
@@ -93,36 +99,52 @@ export default function PartyList({
                   </div>
                   
                   <div className="flex gap-2">
-                    {isMyParty ? (
-                      isFinished ? (
-                        <>
-                          <button onClick={() => handleStatusChange(party.id, 'recruiting', '이 파티를 다시 모집 중 상태로 되돌릴까요?')} className="bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 rounded text-sm transition font-medium">다시 모집 📢</button>
-                          <button onClick={() => handleDelete(party.id)} className="bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded text-sm transition font-medium">파티 삭제</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => setEditingParty(party)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">설정 ⚙️</button>
-                          <button onClick={() => handleStatusChange(party.id, 'completed', '파티를 토벌 완료 처리할까요?')} className="bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-sm transition font-medium">토벌 완료 🏆</button>
-                          
-                          {party.status === 'closed' ? (
-                            <button onClick={() => handleStatusChange(party.id, 'recruiting', '모집을 다시 시작할까요?')} className="bg-indigo-800 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm transition font-medium border border-indigo-600">모집 재개 📢</button>
-                          ) : (
-                            <button onClick={() => handleStatusChange(party.id, 'closed', '파티 모집을 마감할까요?')} className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">모집 마감 🔒</button>
-                          )}
-                          
-                          <button onClick={() => handleDelete(party.id)} className="bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded text-sm transition font-medium">파티 삭제</button>
-                        </>
-                      )
-                    ) : (
-                      // ⭐ 단순 알림창(alert) 띄우던 버튼을 신청 모달 띄우기로 수정
-                      <button 
-                        onClick={() => setApplyingParty(party)} 
-                        className={`px-4 py-1.5 rounded text-sm transition font-bold ${isFinished || party.status === 'closed' ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`} 
-                        disabled={isFinished || party.status === 'closed'}
-                      >
-                        {isFinished || party.status === 'closed' ? '신청 불가' : '참여 신청'}
-                      </button>
-                    )}
+                    {/* ⭐ 일반 파티원 탈퇴 버튼 렌더링 로직 적용 */}
+                    {(() => {
+                      const myMembership = party.party_members?.find((m: any) => 
+                        myCharacters.some(char => char.character_name === m.character_name)
+                      );
+
+                      if (isMyParty) {
+                        return isFinished ? (
+                          <>
+                            <button onClick={() => handleStatusChange(party.id, 'recruiting', '이 파티를 다시 모집 중 상태로 되돌릴까요?')} className="bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 rounded text-sm transition font-medium">다시 모집 📢</button>
+                            <button onClick={() => handleDelete(party.id)} className="bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded text-sm transition font-medium">파티 삭제</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => setEditingParty(party)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">설정 ⚙️</button>
+                            <button onClick={() => handleStatusChange(party.id, 'completed', '파티를 토벌 완료 처리할까요?')} className="bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-sm transition font-medium">토벌 완료 🏆</button>
+                            
+                            {party.status === 'closed' ? (
+                              <button onClick={() => handleStatusChange(party.id, 'recruiting', '모집을 다시 시작할까요?')} className="bg-indigo-800 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm transition font-medium border border-indigo-600">모집 재개 📢</button>
+                            ) : (
+                              <button onClick={() => handleStatusChange(party.id, 'closed', '파티 모집을 마감할까요?')} className="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">모집 마감 🔒</button>
+                            )}
+                            
+                            <button onClick={() => handleDelete(party.id)} className="bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded text-sm transition font-medium">파티 삭제</button>
+                          </>
+                        );
+                      } else if (myMembership) {
+                        // 내가 파티장도 아닌데 파티원으로 소속되어 있는 경우 (탈퇴 / 신청 취소 표시)
+                        return myMembership.status === 'pending' ? (
+                          <button onClick={() => handleLeave(myMembership.id, true)} className="bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded text-sm transition font-bold border border-slate-600">신청 취소</button>
+                        ) : (
+                          <button onClick={() => handleLeave(myMembership.id, false)} className="bg-red-900/80 hover:bg-red-800 text-red-200 px-4 py-1.5 rounded text-sm transition font-bold border border-red-800/50">파티 탈퇴</button>
+                        );
+                      } else {
+                        // 파티에 소속되지 않은 외부 유저인 경우 (참여 신청)
+                        return (
+                          <button 
+                            onClick={() => setApplyingParty(party)} 
+                            className={`px-4 py-1.5 rounded text-sm transition font-bold ${isFinished || party.status === 'closed' ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`} 
+                            disabled={isFinished || party.status === 'closed'}
+                          >
+                            {isFinished || party.status === 'closed' ? '신청 불가' : '참여 신청'}
+                          </button>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
                 
@@ -136,10 +158,11 @@ export default function PartyList({
                 </div>
                 
                 <div className="border-t border-slate-800 pt-4">
-                  <h4 className="text-sm font-medium mb-3">파티원 현황 ({party.party_members?.length || 1} / {party.max_members || party.max_member || 0}명)</h4>
+                  <h4 className="text-sm font-medium mb-3">파티원 현황 ({party.party_members?.filter((m:any) => m.status !== 'pending').length || 1} / {party.max_members || party.max_member || 0}명)</h4>
+                  
                   <div className="bg-slate-950/50 border border-slate-800/50 rounded-lg p-3 space-y-2">
-                    {party.party_members && party.party_members.length > 0 ? (
-                      party.party_members.map((member: any) => (
+                    {party.party_members && party.party_members.filter((m:any) => m.status !== 'pending').length > 0 ? (
+                      party.party_members.filter((m:any) => m.status !== 'pending').map((member: any) => (
                         <div key={member.id} className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-200">⚔️ {member.character_name}</span>
@@ -166,6 +189,31 @@ export default function PartyList({
                         </div>
                       </div>
                     )}
+                    
+                    {isMyParty && party.party_members?.some((m:any) => m.status === 'pending') && (
+                      <div className="mt-4 pt-3 border-t border-slate-800 border-dashed">
+                        <h5 className="text-xs font-bold text-indigo-400 mb-2">🙋‍♂️ 가입 대기 ({party.party_members.filter((m:any) => m.status === 'pending').length}명)</h5>
+                        <div className="space-y-2">
+                          {party.party_members.filter((m:any) => m.status === 'pending').map((member: any) => (
+                            <div key={member.id} className="flex items-center justify-between bg-indigo-950/30 p-2 rounded border border-indigo-900/50">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-slate-300">{member.character_name}</span>
+                                {member.characters && (
+                                  <span className="text-[11px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                                    {member.characters.class_name} | Lv.{member.characters.character_level}
+                                  </span>
+                                )}
+                                {member.memo && <span className="text-xs text-slate-400 ml-2">💭 {member.memo}</span>}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => acceptPartyMember(member.id)} className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded font-bold">수락</button>
+                                <button onClick={() => rejectPartyMember(member.id)} className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1 rounded">거절</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -176,7 +224,6 @@ export default function PartyList({
         )}
       </div>
 
-      {/* ⚙️ 기존 파티 설정 수정 팝업 */}
       {editingParty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
@@ -230,7 +277,6 @@ export default function PartyList({
         </div>
       )}
 
-      {/* 🙋‍♂️ 신규: 파티 참여 신청 팝업 모달 */}
       {applyingParty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
