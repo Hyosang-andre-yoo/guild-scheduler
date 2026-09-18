@@ -27,19 +27,15 @@ export default function PartyList({
       if (!isMember && !isLeader) return false
     }
 
-    // ⭐ 탭별 필터링 로직 수정
     if (tab === 'recruiting') {
-      // '모집 / 진행 중' 탭에서는 '모집 중(recruiting)' 상태인 것만 보여줍니다.
-      // (모집 마감된 closed 상태나 완료된 completed/expired는 제외)
       return party.status === 'recruiting'
     }
     
     if (tab === 'completed') {
-      // '완료 / 만료됨' 탭에서는 모집 마감(closed), 토벌 완료(completed), 기간 만료(expired)를 모두 모아줍니다.
       return party.status === 'closed' || party.status === 'completed' || party.status === 'expired'
     }
 
-    return true // '전체 보기' 탭
+    return true
   })
 
   const handleStatusChange = async (id: string, status: string, message: string) => {
@@ -122,8 +118,13 @@ export default function PartyList({
                   </div>
                 </div>
                 
-                <div className="text-sm text-slate-400 mb-4">
-                  일시: {party.party_date || party.period || '미정'} | 최대 인원: {party.max_members || party.max_member || 0}명
+                <div className="text-sm text-slate-400 mb-4 flex flex-col gap-1">
+                  <div>일시: {party.party_date || party.period || '미정'} | 최대 인원: {party.max_members || party.max_member || 0}명</div>
+                  {party.description && (
+                    <div className="text-indigo-300 bg-indigo-950/40 border border-indigo-900/40 px-2.5 py-1 rounded text-xs mt-1">
+                      💬 메모: {party.description}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="border-t border-slate-800 pt-4">
@@ -168,8 +169,14 @@ export default function PartyList({
               <button onClick={() => setEditingParty(null)} className="text-slate-400 hover:text-white text-lg font-bold">✕</button>
             </div>
             
-            <form action={updatePartySettings} className="space-y-4">
-              <input type="hidden" name="partyId" value={editingParty.id} />
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              const formData = new FormData(e.currentTarget)
+              formData.append('partyId', editingParty.id)
+              
+              await updatePartySettings(formData)
+              setEditingParty(null)
+            }} className="space-y-4">
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
@@ -184,36 +191,23 @@ export default function PartyList({
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">최대 인원</label>
                 <input type="number" name="maxMembers" defaultValue={editingParty.max_members || editingParty.max_member || 1} min={editingParty.party_members?.length || 1} max={6} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" required />
-                <p className="text-xs text-slate-500 mt-1">현재 참여 인원({editingParty.party_members?.length || 1}명)보다 적게 설정할 수 없습니다.</p>
               </div>
 
-              {/* ⭐ 고정팟 여부에 따른 날짜 수정 로직 분리 */}
               {!editingParty.is_fixed ? (
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">출발 일정 (날짜 수정)</label>
-                  <input 
-                    type="date" 
-                    name="partyDate" 
-                    defaultValue={editingParty.party_date || ''} 
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
-                  />
+                  <input type="date" name="partyDate" defaultValue={editingParty.party_date || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
                 </div>
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-slate-500 mb-1">출발 일정 (고정팟)</label>
-                  <input 
-                    type="text" 
-                    value={editingParty.party_date || '매주 고정팟'} 
-                    disabled
-                    className="w-full bg-slate-900 border border-slate-800 text-slate-500 rounded-lg px-4 py-2 text-sm cursor-not-allowed" 
-                  />
-                  <p className="text-xs text-slate-500 mt-1">고정팟은 일정을 변경할 수 없습니다.</p>
+                  <input type="text" value={editingParty.party_date || '매주 고정팟'} disabled className="w-full bg-slate-900 border border-slate-800 text-slate-500 rounded-lg px-4 py-2 text-sm cursor-not-allowed" />
                 </div>
               )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">파티 설명 / 메모</label>
-                <input type="text" name="description" defaultValue={editingParty.description || ''} placeholder="예: 출발 10분 전 디코 모임" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
+                <input type="text" name="description" defaultValue={editingParty.description || ''} placeholder="예: 2층 좌측 / 디코 필수" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
               </div>
 
               <div className="flex gap-3 pt-4 mt-2 border-t border-slate-800">
