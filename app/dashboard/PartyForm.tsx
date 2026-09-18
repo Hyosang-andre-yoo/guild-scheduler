@@ -125,11 +125,11 @@ export default function PartyForm({ characters }: PartyFormProps) {
       setIsLoading(true)
       await createParty(formData)
     } catch (error: any) {
-      if (error.message === 'NEXT_REDIRECT') {
+      // ⭐ NEXT_REDIRECT 에러인 경우는 정상적인 페이지 이동이므로 무조건 그대로 던져줘야 합니다!
+      if (error.message === 'NEXT_REDIRECT' || error.digest?.startsWith('NEXT_REDIRECT')) {
         throw error
       }
       alert(error.message || '파티 개설 중 오류가 발생했습니다.')
-    } finally {
       setIsLoading(false)
     }
   }
