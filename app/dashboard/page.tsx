@@ -27,6 +27,7 @@ export default async function DashboardPage({
   const { data: allCharacters } = await supabase.from('characters').select('*')
   const myCharacters = allCharacters?.filter((char: any) => char.user_id === user.id) || []
 
+  // ⭐ 파티원 정보 조회 시 characters 테이블과 조인하여 직업, 레벨, 이미지 정보 함께 가져오기
   const { data: parties } = await supabase
     .from('parties')
     .select(`
@@ -36,12 +37,20 @@ export default async function DashboardPage({
         character_name,
         status,
         user_id,
-        memo
+        memo,
+        time_confirmed,
+        characters (
+          character_name,
+          class_name,
+          character_level,
+          character_image,
+          world_name
+        )
       )
     `)
     .order('id', { ascending: false })
 
-  // ⭐ 캐릭터 등록 및 디코 닉네임 자동 처리 로직
+  // 캐릭터 등록 및 디코 닉네임 자동 처리 로직
   const registerCharacter = async (formData: FormData) => {
     'use server'
     const characterName = formData.get('characterName') as string
@@ -65,7 +74,6 @@ export default async function DashboardPage({
     const charInfo = await fetchCharacterInfo(characterName)
     if (!charInfo) redirect('/dashboard?error=not-found')
 
-    // 1. 이미 등록해둔 내 다른 캐릭터가 있는지 확인
     const { data: myOtherChars } = await supabase
       .from('characters')
       .select('discord_nickname')
@@ -76,14 +84,11 @@ export default async function DashboardPage({
     let finalDiscordNickname = '길드원'
 
     if (myOtherChars && myOtherChars.length > 0 && myOtherChars[0].discord_nickname) {
-      // 이미 다른 캐릭에 등록해둔 닉네임이 있다면 알아서 복사
       finalDiscordNickname = myOtherChars[0].discord_nickname
     } else if (formDiscordNickname) {
-      // 다른 캐릭이 없고 폼에서 새로 입력받았다면 그걸 적용
       finalDiscordNickname = formDiscordNickname
     }
     
-    // 2. 캐릭터 정보와 닉네임 DB에 함께 저장
     const { error } = await supabase.from('characters').insert([
       {
         user_id: user.id,

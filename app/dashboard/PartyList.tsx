@@ -133,8 +133,16 @@ export default function PartyList({
                     {party.party_members && party.party_members.length > 0 ? (
                       party.party_members.map((member: any) => (
                         <div key={member.id} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-200">⚔️ {member.character_name}</span>
+                            
+                            {/* 조인된 characters 테이블에서 가져온 직업 및 레벨 표시 */}
+                            {member.characters && (
+                              <span className="text-[11px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                                {member.characters.class_name} | Lv.{member.characters.character_level}
+                              </span>
+                            )}
+
                             {member.status === 'leader' && <span className="bg-emerald-800 text-emerald-200 px-1.5 py-0.5 rounded text-[10px]">파티장</span>}
                             {member.memo && <span className="text-xs text-slate-400 ml-2">💭 {member.memo}</span>}
                           </div>
