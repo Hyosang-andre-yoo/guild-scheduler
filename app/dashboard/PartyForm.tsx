@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createParty } from './actions'
 
 interface Character {
@@ -34,11 +34,15 @@ export default function PartyForm({ characters }: PartyFormProps) {
   const [isFixed, setIsFixed] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    return String(new Date().getMonth() + 1)
-  })
-
+  // ⭐ 서버/클라이언트 하이드레이션 에러 방지를 위해 초기값 고정 후 useEffect로 동기화
+  const [selectedMonth, setSelectedMonth] = useState('1')
   const [selectedWeekIndex, setSelectedWeekIndex] = useState('0')
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+    setSelectedMonth(String(new Date().getMonth() + 1))
+  }, [])
 
   const currentBoss = BOSS_LIST.find((b) => b.name === selectedBossName) || BOSS_LIST[0]
   const isMonthly = currentBoss.type === 'monthly'
@@ -128,6 +132,11 @@ export default function PartyForm({ characters }: PartyFormProps) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // 마운트되기 전에는 빈 공간이나 기본 형태로 렌더링하여 하이드레이션 오류 방지
+  if (!isMounted) {
+    return <div className="p-6 text-center text-gray-500">로딩 중...</div>
   }
 
   return (
