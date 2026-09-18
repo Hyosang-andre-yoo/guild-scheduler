@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '../../utils/supabase/server'
 
 // ⭐ 누락되었던 새 파티 생성 액션
