@@ -27,28 +27,21 @@ export default async function DashboardPage({
   const { data: allCharacters } = await supabase.from('characters').select('*')
   const myCharacters = allCharacters?.filter((char: any) => char.user_id === user.id) || []
 
-  // ⭐ 파티원 정보 조회 시 characters 테이블과 조인하여 직업, 레벨, 이미지 정보 함께 가져오기
-  const { data: parties } = await supabase
+  // ⭐ 조인 에러 방지를 위해 parties와 party_members를 안전하게 분리하여 조회
+  const { data: partiesData } = await supabase
     .from('parties')
-    .select(`
-      *,
-      party_members (
-        id,
-        character_name,
-        status,
-        user_id,
-        memo,
-        time_confirmed,
-        characters (
-          character_name,
-          class_name,
-          character_level,
-          character_image,
-          world_name
-        )
-      )
-    `)
+    .select('*')
     .order('id', { ascending: false })
+
+  const { data: membersData } = await supabase
+    .from('party_members')
+    .select('*')
+
+  // 파티 데이터에 멤버 목록 매핑
+  const parties = partiesData?.map(party => ({
+    ...party,
+    party_members: membersData?.filter(m => m.party_id === party.id) || []
+  })) || []
 
   // 캐릭터 등록 및 디코 닉네임 자동 처리 로직
   const registerCharacter = async (formData: FormData) => {
@@ -111,21 +104,21 @@ export default async function DashboardPage({
         
         <div className="flex-1 space-y-10">
           
-          {/* 1. 내 캐릭터별 파티 스케줄 모아보기 (개인 스케줄러) */}
+          {/* 1. 내 캐릭터별 파티 스케줄 모아보기 */}
           <section>
-          <MySchedule myCharacters={myCharacters} parties={parties || []} currentUserId={user.id} />
+            <MySchedule myCharacters={myCharacters} parties={parties} currentUserId={user.id} />
           </section>
 
-          {/* 2. 길드 주간 보스 스케줄 (2주치 세로 뷰) */}
+          {/* 2. 길드 주간 보스 스케줄 */}
           <section>
             <h2 className="text-xl font-bold mb-4">📅 길드 주간 보스 스케줄</h2>
-            <GuildWeeklySchedule parties={parties || []} />
+            <GuildWeeklySchedule parties={parties} />
           </section>
 
-          {/* 3. 보스 파티 목록 (구인구직 게시판) */}
+          {/* 3. 보스 파티 목록 */}
           <section>
             <PartyList 
-              parties={parties || []} 
+              parties={parties} 
               myCharacters={myCharacters} 
               currentTab={currentTab} 
             />
@@ -138,7 +131,7 @@ export default async function DashboardPage({
           </section>
         </div>
 
-        {/* 5. 우측 숨김 가능한 사이드바 (내 캐릭터 관리) */}
+        {/* 5. 우측 사이드바 (내 캐릭터 관리) */}
         <SidebarWrapper>
           <form action={registerCharacter}>
             <CharacterManager characters={myCharacters} />
