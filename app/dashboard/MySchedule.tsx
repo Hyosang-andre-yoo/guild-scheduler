@@ -10,8 +10,54 @@ interface MyScheduleProps {
 }
 
 export default function MySchedule({ myCharacters, parties, currentUserId }: MyScheduleProps) {
-  // 파티장 시간 설정 모달을 열기 위한 상태 관리 (어떤 파티의 시간을 설정 중인지 저장)
   const [settingParty, setSettingParty] = useState<any>(null)
+
+  // 요일 및 시간 선택용 상태
+  const [selectedDayOffset, setSelectedDayOffset] = useState<string>('0') // 오늘 기준 며칠 뒤인지
+  const [selectedHour, setSelectedHour] = useState<string>('21') // 기본 밤 9시
+  const [selectedMinute, setSelectedMinute] = useState<string>('00')
+
+  // 요일 옵션 계산 (오늘부터 7일간)
+  const getDayOptions = () => {
+    const options = []
+    const days = ['일', '월', '화', '수', '목', '금', '토']
+    const today = new Date()
+
+    // 한국 시간 기준 또는 로컬 기준으로 이번 주 날짜 생성
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today)
+      d.setDate(today.getDate() + i)
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      const dateStr = `${year}-${month}-${day}`
+      
+      const dayName = i === 0 ? '오늘' : i === 1 ? '내일' : `${days[d.getDay()]}요일`
+      options.push({ label: `${month}/${day} (${dayName})`, value: dateStr })
+    }
+    return options
+  }
+
+  const dayOptions = getDayOptions()
+
+  // 모달을 열 때 기존 설정된 시간이 있다면 맞추어 초기화
+  const handleOpenModal = (party: any) => {
+    setSettingParty(party)
+    if (party.departure_time) {
+      // "YYYY-MM-DDTHH:mm" 형태 분리
+      const [datePart, timePart] = party.departure_time.split('T')
+      if (datePart) setSelectedDayOffset(datePart)
+      if (timePart) {
+        const [h, m] = timePart.split(':')
+        if (h) setSelectedHour(h)
+        if (m) setSelectedMinute(m)
+      }
+    } else {
+      setSelectedDayOffset(dayOptions[0].value)
+      setSelectedHour('21')
+      setSelectedMinute('00')
+    }
+  }
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
@@ -28,7 +74,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
       <div className="space-y-6">
         {myCharacters && myCharacters.length > 0 ? (
           myCharacters.map((char) => {
-            // 이 캐릭터가 참여 중이거나 파티장인 파티들 필터링
             const charParties = parties.filter((party) => {
               if (party.status === 'expired') return false
               const isMember = party.party_members?.some((m: any) => m.character_name === char.character_name)
@@ -39,7 +84,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
 
             return (
               <div key={char.id} className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 shadow-inner">
-                {/* 캐릭터 프로필 헤더 */}
                 <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-900">
                   {char.character_image ? (
                     <img src={char.character_image} alt={char.character_name} className="w-12 h-12 rounded-lg bg-slate-900 object-contain border border-slate-800" />
@@ -59,25 +103,17 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                   </div>
                 </div>
 
-                {/* 해당 캐릭터의 파티 카드 목록 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {charParties.length > 0 ? (
                     charParties.map((party) => {
                       const firstMemberName = party.party_members?.[0]?.character_name
                       const leaderName = party.leader_character || party.character_name || firstMemberName
                       const isLeader = leaderName === char.character_name
-
-                      // 현재 캐릭터의 파티 멤버 정보 찾기
                       const myMembership = party.party_members?.find((m: any) => m.character_name === char.character_name)
-
-                      // 출발 시간 포맷팅 (YYYY-MM-DDTHH:mm -> MM월 DD일 HH:mm)
-                      const formattedTime = party.departure_time 
-                        ? party.departure_time.replace('T', ' ') 
-                        : null
+                      const formattedTime = party.departure_time ? party.departure_time.replace('T', ' ') : null
 
                       return (
                         <div key={party.id} className="bg-slate-900/90 border border-slate-800 rounded-lg p-3.5 flex flex-col justify-between gap-3 relative overflow-hidden">
-                          {/* 왼쪽 포인트 바 */}
                           <div className={`absolute top-0 left-0 w-1 h-full ${party.departure_time ? 'bg-emerald-500' : 'bg-amber-500'}`} />
 
                           <div className="flex justify-between items-start pl-2">
@@ -99,7 +135,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                             </div>
                           </div>
 
-                          {/* ⏰ 출발 시간 및 파티장 설정 버튼 영역 */}
                           <div className="bg-slate-950/80 rounded-md p-2.5 border border-slate-800/60 pl-3 flex flex-col gap-2">
                             <div className="flex justify-between items-center">
                               <div className="text-xs">
@@ -109,10 +144,9 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                                 </span>
                               </div>
 
-                              {/* 파티장인 경우에만 시간 설정 버튼 노출 */}
                               {isLeader && (
                                 <button 
-                                  onClick={() => setSettingParty(party)}
+                                  onClick={() => handleOpenModal(party)}
                                   className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded font-medium transition"
                                 >
                                   {party.departure_time ? '시간 수정' : '시간 정하기 ⏱️'}
@@ -120,7 +154,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                               )}
                             </div>
 
-                            {/* 파티원들의 시간 확인 체크 상태 표시 */}
                             {party.party_members && party.party_members.length > 0 && (
                               <div className="border-t border-slate-900 pt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
                                 <span className="text-slate-400 text-[11px]">파티원 확인 현황:</span>
@@ -141,7 +174,6 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
                               </div>
                             )}
 
-                            {/* 일반 파티원인 경우 '시간 확인 체크' 버튼 제공 */}
                             {myMembership && !isLeader && formattedTime && (
                               <button
                                 onClick={async () => {
@@ -176,7 +208,7 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
         )}
       </div>
 
-      {/* ⏰ 파티장 전용 [출발 시간 설정] 팝업 모달 */}
+      {/* ⏱️ 드롭다운 방식으로 요일/시간을 편하게 고르는 파티장 모달 */}
       {settingParty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
@@ -188,24 +220,71 @@ export default function MySchedule({ myCharacters, parties, currentUserId }: MyS
             </div>
             
             <form action={async (formData) => {
+              // 숨겨진 input에 "YYYY-MM-DDTHH:mm" 조합된 값을 만들어서 서버로 전송
+              const combinedDateTime = `${selectedDayOffset}T${selectedHour}:${selectedMinute}`
+              formData.set('departureTime', combinedDateTime)
+
               await updatePartyDepartureTime(formData)
               setSettingParty(null)
             }} className="space-y-4">
               <input type="hidden" name="partyId" value={settingParty.id} />
 
+              {/* 1. 요일(날짜) 선택 드롭다운 */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">상세 출발 일시 선택</label>
-                <input 
-                  type="datetime-local" 
-                  name="departureTime" 
-                  defaultValue={settingParty.departure_time ? settingParty.departure_time.slice(0, 16) : ''} 
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500" 
-                  required 
-                />
-                <p className="text-xs text-slate-400 mt-2">
-                  * 이 시간이 설정되면 당일 자정 디스코드 브리핑 대상에 포함되며, 1시간 전 알림 등의 자동화와 연동됩니다.
-                </p>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">출발 요일 선택</label>
+                <select 
+                  value={selectedDayOffset} 
+                  onChange={(e) => setSelectedDayOffset(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500"
+                >
+                  {dayOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* 2. 시간 및 분 선택 드롭다운 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">시간 (시)</label>
+                  <select 
+                    value={selectedHour} 
+                    onChange={(e) => setSelectedHour(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  >
+                    {Array.from({ length: 24 }).map((_, i) => {
+                      const hourStr = String(i).padStart(2, '0')
+                      const displayHour = i === 0 ? '오전 12시 (자정)' : i < 12 ? `오전 ${i}시` : i === 12 ? '오후 12시 (정오)' : `오후 ${i - 12}시`
+                      return (
+                        <option key={hourStr} value={hourStr}>
+                          {displayHour} ({hourStr}시)
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">분</label>
+                  <select 
+                    value={selectedMinute} 
+                    onChange={(e) => setSelectedMinute(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  >
+                    {['00', '10', '20', '30', '40', '50'].map((min) => (
+                      <option key={min} value={min}>
+                        {min}분
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 pt-1">
+                * 이 시간이 설정되면 당일 자정 디스코드 브리핑 대상에 포함되며, 파티원들이 확인 체크를 할 수 있습니다.
+              </p>
 
               <div className="flex gap-3 pt-3">
                 <button type="button" onClick={() => setSettingParty(null)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl text-sm font-bold transition">취소</button>
