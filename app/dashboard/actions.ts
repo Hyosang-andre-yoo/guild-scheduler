@@ -2,6 +2,7 @@
 
 import { createClient } from '../../utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache' // 👈 새로고침을 위해 추가됨
 
 // 디스코드 웹훅 알림 전송 헬퍼 함수
 export async function sendDiscordWebhook(message: string) {
@@ -81,43 +82,103 @@ export async function createParty(formData: FormData) {
   redirect('/dashboard?success=party-created')
 }
 
-// 파티 설정 수정 액션 (actions.ts 하단 교체)
+// 파티 설정 수정 액션
 export async function updatePartySettings(formData: FormData) {
-    const partyId = formData.get('partyId') as string
-    const difficulty = formData.get('difficulty') as string
-    const maxMembers = Number(formData.get('maxMembers'))
-    const description = formData.get('description') as string
-    const departureTime = formData.get('departureTime') as string || null
-  
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-  
-    const { data: members } = await supabase
-      .from('party_members')
-      .select('*')
-      .eq('party_id', partyId)
-      .eq('status', 'accepted')
-  
-    if (members && members.length > maxMembers) {
-      throw new Error(`현재 승인된 파티원(${members.length}명)보다 적은 인원으로 수정할 수 없습니다.`)
-    }
-  
-    const { error } = await supabase
-      .from('parties')
-      .update({
-        difficulty,
-        max_members: maxMembers,
-        description,
-        departure_time: departureTime
-      })
-      .eq('id', partyId)
-      .eq('leader_id', user.id)
-  
-    if (error) {
-      console.error('Party update error:', error.message)
-      throw new Error('파티 설정 수정 실패')
-    }
-  
-    redirect('/dashboard?success=party-updated')
+  const partyId = formData.get('partyId') as string
+  const difficulty = formData.get('difficulty') as string
+  const maxMembers = Number(formData.get('maxMembers'))
+  const description = formData.get('description') as string
+  const departureTime = formData.get('departureTime') as string || null
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: members } = await supabase
+    .from('party_members')
+    .select('*')
+    .eq('party_id', partyId)
+    .eq('status', 'accepted')
+
+  if (members && members.length > maxMembers) {
+    throw new Error(`현재 승인된 파티원(${members.length}명)보다 적은 인원으로 수정할 수 없습니다.`)
   }
+
+  const { error } = await supabase
+    .from('parties')
+    .update({
+      difficulty,
+      max_members: maxMembers,
+      description,
+      departure_time: departureTime
+    })
+    .eq('id', partyId)
+    .eq('leader_id', user.id)
+
+  if (error) {
+    console.error('Party update error:', error.message)
+    throw new Error('파티 설정 수정 실패')
+  }
+
+  redirect('/dashboard?success=party-updated')
+}
+
+// ==========================================
+// ⭐ 아래부터 새로 추가된 버튼 작동용 액션들 ⭐
+// ==========================================
+
+// 1. 파티 상태 변경 (토벌 완료, 모집 마감 등)
+export async function updatePartyStatus(partyId: string, status: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('parties')
+    .update({ status })
+    .eq('id', partyId)
+
+  if (!error) {
+    revalidatePath('/dashboard')
+  }
+  return { success: !error }
+}
+
+// 2. 파티 삭제
+export async function deleteParty(partyId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('parties')
+    .delete()
+    .eq('id', partyId)
+
+  if (!error) {
+    revalidatePath('/dashboard')
+  }
+  return { success: !error }
+}
+
+// 3. 파티원 강퇴 (내보내기)
+export async function removePartyMember(memberId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('party_members')
+    .delete()
+    .eq('id', memberId)
+
+  if (!error) {
+    revalidatePath('/dashboard')
+  }
+  return { success: !error }
+}
+
+// 캐릭터 삭제 액션
+export async function deleteCharacter(characterId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('characters')
+    .delete()
+    .eq('id', characterId)
+
+  if (!error) {
+    revalidatePath('/dashboard')
+  }
+  return { success: !error }
+}
