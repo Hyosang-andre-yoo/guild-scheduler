@@ -82,13 +82,15 @@ export async function createParty(formData: FormData) {
   redirect('/dashboard?success=party-created')
 }
 
-// 파티 설정 수정 액션
+// 파티 설정 수정 액션 (기존 함수를 이걸로 덮어씌우세요)
 export async function updatePartySettings(formData: FormData) {
   const partyId = formData.get('partyId') as string
   const difficulty = formData.get('difficulty') as string
   const maxMembers = Number(formData.get('maxMembers'))
   const description = formData.get('description') as string
-  const departureTime = formData.get('departureTime') as string || null
+  
+  // 시간(departureTime) 대신 날짜(partyDate)를 받습니다.
+  const partyDate = formData.get('partyDate') as string || null
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -104,14 +106,21 @@ export async function updatePartySettings(formData: FormData) {
     throw new Error(`현재 승인된 파티원(${members.length}명)보다 적은 인원으로 수정할 수 없습니다.`)
   }
 
+  // 업데이트할 기본 데이터
+  const updateData: any = {
+    difficulty,
+    max_members: maxMembers,
+    description,
+  }
+
+  // 고정팟이 아니라서 날짜 데이터가 넘어왔을 때만 날짜(party_date) 업데이트
+  if (partyDate) {
+    updateData.party_date = partyDate
+  }
+
   const { error } = await supabase
     .from('parties')
-    .update({
-      difficulty,
-      max_members: maxMembers,
-      description,
-      departure_time: departureTime
-    })
+    .update(updateData)
     .eq('id', partyId)
     .eq('leader_id', user.id)
 
@@ -184,4 +193,40 @@ export async function deleteCharacter(characterId: string) {
 
   revalidatePath('/dashboard')
   return { success: true }
+}
+
+// 4. 파티장 출발 시간 설정 액션 (MySchedule용)
+export async function updatePartyDepartureTime(formData: FormData) {
+  const partyId = formData.get('partyId') as string
+  const departureTime = formData.get('departureTime') as string
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { error } = await supabase
+    .from('parties')
+    .update({ departure_time: departureTime })
+    .eq('id', partyId)
+
+  if (error) {
+    console.error('Departure time update error:', error.message)
+    throw new Error('출발 시간 설정 실패')
+  }
+
+  revalidatePath('/dashboard')
+}
+
+// 5. 파티원 출발 시간 확인 체크 액션
+export async function toggleTimeConfirmation(memberId: string, currentStatus: boolean) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('party_members')
+    .update({ time_confirmed: !currentStatus })
+    .eq('id', memberId)
+
+  if (!error) {
+    revalidatePath('/dashboard')
+  }
+  return { success: !error }
 }

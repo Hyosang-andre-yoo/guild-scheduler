@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-// ⭐ 상단에 updatePartySettings 임포트를 추가했습니다.
 import { updatePartyStatus, deleteParty, removePartyMember, updatePartySettings } from './actions'
 
 export default function PartyList({ 
@@ -16,7 +15,6 @@ export default function PartyList({
   selectedChar?: string 
 }) {
   const [tab, setTab] = useState(currentTab)
-  // ⭐ 설정 창(Modal)을 띄우기 위한 상태값 추가
   const [editingParty, setEditingParty] = useState<any>(null)
   
   const currentUserId = myCharacters.length > 0 ? myCharacters[0].user_id : null;
@@ -34,7 +32,6 @@ export default function PartyList({
     return true
   })
 
-  // 버튼 액션 핸들러들
   const handleStatusChange = async (id: string, status: string, message: string) => {
     if (window.confirm(message)) {
       await updatePartyStatus(id, status)
@@ -59,24 +56,9 @@ export default function PartyList({
         <h2 className="text-xl font-bold">⚔️ 보스 파티 목록</h2>
         
         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
-          <button 
-            onClick={() => setTab('recruiting')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'recruiting' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-          >
-            모집 / 진행 중
-          </button>
-          <button 
-            onClick={() => setTab('completed')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'completed' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-          >
-            완료 / 만료됨
-          </button>
-          <button 
-            onClick={() => setTab('all')}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'all' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-          >
-            전체 보기
-          </button>
+          <button onClick={() => setTab('recruiting')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'recruiting' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>모집 / 진행 중</button>
+          <button onClick={() => setTab('completed')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'completed' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>완료 / 만료됨</button>
+          <button onClick={() => setTab('all')} className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'all' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>전체 보기</button>
         </div>
       </div>
 
@@ -85,42 +67,20 @@ export default function PartyList({
           filteredParties.map((party) => {
             const firstMemberName = party.party_members?.[0]?.character_name;
             const leaderName = party.leader_character || party.character_name || firstMemberName;
-            
-            const isMyParty = 
-              (currentUserId && party.user_id === currentUserId) || 
-              (leaderName && myCharacters.some(char => char.character_name === leaderName));
-
+            const isMyParty = (currentUserId && party.user_id === currentUserId) || (leaderName && myCharacters.some(char => char.character_name === leaderName));
             const isFinished = party.status === 'completed' || party.status === 'expired';
 
             return (
               <div key={party.id} className={`bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm transition-all ${isFinished ? 'opacity-70 grayscale-[30%]' : ''}`}>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${
-                      party.status === 'completed' ? 'bg-emerald-900/50 text-emerald-400 border-emerald-500/30' : 
-                      party.status === 'expired' ? 'bg-slate-800 text-slate-400 border-slate-600' :
-                      party.status === 'closed' ? 'bg-slate-800 text-slate-300 border-slate-600' : 
-                      'bg-indigo-900/50 text-indigo-400 border-indigo-500/30'
-                    }`}>
-                      {party.status === 'completed' ? '🏆 토벌 완료' : 
-                       party.status === 'expired' ? '⏳ 기간 만료' :
-                       party.status === 'closed' ? '🔒 모집 마감' : '📢 모집 중'}
+                    <span className={`px-2 py-0.5 rounded text-xs font-bold border ${party.status === 'completed' ? 'bg-emerald-900/50 text-emerald-400 border-emerald-500/30' : party.status === 'expired' ? 'bg-slate-800 text-slate-400 border-slate-600' : party.status === 'closed' ? 'bg-slate-800 text-slate-300 border-slate-600' : 'bg-indigo-900/50 text-indigo-400 border-indigo-500/30'}`}>
+                      {party.status === 'completed' ? '🏆 토벌 완료' : party.status === 'expired' ? '⏳ 기간 만료' : party.status === 'closed' ? '🔒 모집 마감' : '📢 모집 중'}
                     </span>
-                    <span className="bg-purple-900/50 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-xs font-bold">
-                      {party.difficulty || 'Extreme'}
-                    </span>
+                    <span className="bg-purple-900/50 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-xs font-bold">{party.difficulty || 'Extreme'}</span>
                     <h3 className="font-bold text-lg">{party.boss_name} 파티</h3>
-                    
-                    {isMyParty && (
-                      <span className="text-xs font-bold text-orange-400 border border-orange-500/50 bg-orange-950 px-2 py-0.5 rounded">
-                        내 파티 (파티장)
-                      </span>
-                    )}
-                    {party.is_fixed && (
-                      <span className="text-xs text-amber-400 border border-amber-500/30 bg-amber-900/30 px-2 py-0.5 rounded">
-                        고정팟
-                      </span>
-                    )}
+                    {isMyParty && <span className="text-xs font-bold text-orange-400 border border-orange-500/50 bg-orange-950 px-2 py-0.5 rounded">내 파티 (파티장)</span>}
+                    {party.is_fixed && <span className="text-xs text-amber-400 border border-amber-500/30 bg-amber-900/30 px-2 py-0.5 rounded">고정팟</span>}
                   </div>
                   
                   <div className="flex gap-2">
@@ -132,7 +92,6 @@ export default function PartyList({
                         </>
                       ) : (
                         <>
-                          {/* ⭐ 껍데기 알림창 대신 실제 설정 모달 상태를 열어주도록 수정 */}
                           <button onClick={() => setEditingParty(party)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">설정 ⚙️</button>
                           <button onClick={() => handleStatusChange(party.id, 'completed', '파티를 토벌 완료 처리할까요?')} className="bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-sm transition font-medium">토벌 완료 🏆</button>
                           
@@ -158,24 +117,18 @@ export default function PartyList({
                 </div>
                 
                 <div className="border-t border-slate-800 pt-4">
-                  <h4 className="text-sm font-medium mb-3">
-                    파티원 현황 ({party.party_members?.length || 1} / {party.max_members || party.max_member || 0}명)
-                  </h4>
+                  <h4 className="text-sm font-medium mb-3">파티원 현황 ({party.party_members?.length || 1} / {party.max_members || party.max_member || 0}명)</h4>
                   <div className="bg-slate-950/50 border border-slate-800/50 rounded-lg p-3 space-y-2">
                     {party.party_members && party.party_members.length > 0 ? (
                       party.party_members.map((member: any) => (
                         <div key={member.id} className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-200">⚔️ {member.character_name}</span>
-                            {member.status === 'leader' && (
-                              <span className="bg-emerald-800 text-emerald-200 px-1.5 py-0.5 rounded text-[10px]">파티장</span>
-                            )}
+                            {member.status === 'leader' && <span className="bg-emerald-800 text-emerald-200 px-1.5 py-0.5 rounded text-[10px]">파티장</span>}
                             {member.memo && <span className="text-xs text-slate-400 ml-2">💭 {member.memo}</span>}
                           </div>
                           {isMyParty && member.character_name !== leaderName && !isFinished && (
-                            <button onClick={() => handleKick(member.id, member.character_name)} className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 bg-red-950/30 px-2 py-1 rounded">
-                              내보내기 ✕
-                            </button>
+                            <button onClick={() => handleKick(member.id, member.character_name)} className="text-xs text-red-400 hover:text-red-300 border border-red-900/50 bg-red-950/30 px-2 py-1 rounded">내보내기 ✕</button>
                           )}
                         </div>
                       ))
@@ -193,13 +146,10 @@ export default function PartyList({
             );
           })
         ) : (
-          <div className="text-center text-slate-500 py-10 bg-slate-900/50 rounded-xl border border-slate-800 border-dashed">
-            해당 상태의 파티가 없습니다.
-          </div>
+          <div className="text-center text-slate-500 py-10 bg-slate-900/50 rounded-xl border border-slate-800 border-dashed">조건에 맞는 파티가 없습니다.</div>
         )}
       </div>
 
-      {/* ⭐ 파티 설정 팝업(Modal) UI 추가 */}
       {editingParty && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
@@ -209,7 +159,6 @@ export default function PartyList({
             </div>
             
             <form action={updatePartySettings} className="space-y-4">
-              {/* 수정 액션에 필요한 파티 ID를 숨겨서 전달 */}
               <input type="hidden" name="partyId" value={editingParty.id} />
 
               <div>
@@ -224,38 +173,37 @@ export default function PartyList({
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">최대 인원</label>
-                <input 
-                  type="number" 
-                  name="maxMembers" 
-                  defaultValue={editingParty.max_members || editingParty.max_member || 1} 
-                  min={editingParty.party_members?.length || 1} 
-                  max={6} 
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
-                  required 
-                />
+                <input type="number" name="maxMembers" defaultValue={editingParty.max_members || editingParty.max_member || 1} min={editingParty.party_members?.length || 1} max={6} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" required />
                 <p className="text-xs text-slate-500 mt-1">현재 참여 인원({editingParty.party_members?.length || 1}명)보다 적게 설정할 수 없습니다.</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">출발 시간 (선택)</label>
-                {/* datetime-local 포맷에 맞게 slice(0, 16) 처리 */}
-                <input 
-                  type="datetime-local" 
-                  name="departureTime" 
-                  defaultValue={editingParty.departure_time ? editingParty.departure_time.slice(0, 16) : ''} 
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
-                />
-              </div>
+              {/* ⭐ 고정팟 여부에 따른 날짜 수정 로직 분리 */}
+              {!editingParty.is_fixed ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">출발 일정 (날짜 수정)</label>
+                  <input 
+                    type="date" 
+                    name="partyDate" 
+                    defaultValue={editingParty.party_date || ''} 
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-500 mb-1">출발 일정 (고정팟)</label>
+                  <input 
+                    type="text" 
+                    value={editingParty.party_date || '매주 고정팟'} 
+                    disabled
+                    className="w-full bg-slate-900 border border-slate-800 text-slate-500 rounded-lg px-4 py-2 text-sm cursor-not-allowed" 
+                  />
+                  <p className="text-xs text-slate-500 mt-1">고정팟은 일정을 변경할 수 없습니다.</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">파티 설명 / 메모</label>
-                <input 
-                  type="text" 
-                  name="description" 
-                  defaultValue={editingParty.description || ''} 
-                  placeholder="예: 출발 10분 전 디코 모임" 
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
-                />
+                <input type="text" name="description" defaultValue={editingParty.description || ''} placeholder="예: 출발 10분 전 디코 모임" className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" />
               </div>
 
               <div className="flex gap-3 pt-4 mt-2 border-t border-slate-800">
