@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { updatePartyStatus, deleteParty, removePartyMember } from './actions'
+// ⭐ 상단에 updatePartySettings 임포트를 추가했습니다.
+import { updatePartyStatus, deleteParty, removePartyMember, updatePartySettings } from './actions'
 
 export default function PartyList({ 
   parties, 
@@ -15,6 +16,9 @@ export default function PartyList({
   selectedChar?: string 
 }) {
   const [tab, setTab] = useState(currentTab)
+  // ⭐ 설정 창(Modal)을 띄우기 위한 상태값 추가
+  const [editingParty, setEditingParty] = useState<any>(null)
+  
   const currentUserId = myCharacters.length > 0 ? myCharacters[0].user_id : null;
 
   const filteredParties = parties.filter((party) => {
@@ -86,7 +90,6 @@ export default function PartyList({
               (currentUserId && party.user_id === currentUserId) || 
               (leaderName && myCharacters.some(char => char.character_name === leaderName));
 
-            // 파티가 완료/만료 상태인지 확인
             const isFinished = party.status === 'completed' || party.status === 'expired';
 
             return (
@@ -120,22 +123,19 @@ export default function PartyList({
                     )}
                   </div>
                   
-                  {/* ⭐ 상태에 따라 버튼이 스마트하게 바뀌는 영역 */}
                   <div className="flex gap-2">
                     {isMyParty ? (
                       isFinished ? (
-                        // 이미 완료/만료된 파티일 때
                         <>
                           <button onClick={() => handleStatusChange(party.id, 'recruiting', '이 파티를 다시 모집 중 상태로 되돌릴까요?')} className="bg-indigo-700 hover:bg-indigo-600 px-3 py-1.5 rounded text-sm transition font-medium">다시 모집 📢</button>
                           <button onClick={() => handleDelete(party.id)} className="bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded text-sm transition font-medium">파티 삭제</button>
                         </>
                       ) : (
-                        // 아직 진행 중이거나 마감만 된 파티일 때
                         <>
-                          <button onClick={() => window.alert('설정 기능은 기존 수정 폼(Modal) 연결이 필요합니다.')} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">설정 ⚙️</button>
+                          {/* ⭐ 껍데기 알림창 대신 실제 설정 모달 상태를 열어주도록 수정 */}
+                          <button onClick={() => setEditingParty(party)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition font-medium border border-slate-600">설정 ⚙️</button>
                           <button onClick={() => handleStatusChange(party.id, 'completed', '파티를 토벌 완료 처리할까요?')} className="bg-emerald-700 hover:bg-emerald-600 px-3 py-1.5 rounded text-sm transition font-medium">토벌 완료 🏆</button>
                           
-                          {/* 모집 마감 <-> 모집 재개 토글 */}
                           {party.status === 'closed' ? (
                             <button onClick={() => handleStatusChange(party.id, 'recruiting', '모집을 다시 시작할까요?')} className="bg-indigo-800 hover:bg-indigo-700 px-3 py-1.5 rounded text-sm transition font-medium border border-indigo-600">모집 재개 📢</button>
                           ) : (
@@ -146,7 +146,6 @@ export default function PartyList({
                         </>
                       )
                     ) : (
-                      // 내가 파티장이 아닐 때
                       <button onClick={() => window.alert('참여 신청 모달과 연결이 필요합니다.')} className={`px-4 py-1.5 rounded text-sm transition font-bold ${isFinished || party.status === 'closed' ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`} disabled={isFinished || party.status === 'closed'}>
                         {isFinished || party.status === 'closed' ? '신청 불가' : '참여 신청'}
                       </button>
@@ -199,6 +198,74 @@ export default function PartyList({
           </div>
         )}
       </div>
+
+      {/* ⭐ 파티 설정 팝업(Modal) UI 추가 */}
+      {editingParty && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl relative">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">⚙️ 파티 설정 수정</h3>
+              <button onClick={() => setEditingParty(null)} className="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+            </div>
+            
+            <form action={updatePartySettings} className="space-y-4">
+              {/* 수정 액션에 필요한 파티 ID를 숨겨서 전달 */}
+              <input type="hidden" name="partyId" value={editingParty.id} />
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">난이도</label>
+                <select name="difficulty" defaultValue={editingParty.difficulty || 'Normal'} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500">
+                  <option value="Normal">Normal</option>
+                  <option value="Hard">Hard</option>
+                  <option value="Chaos">Chaos</option>
+                  <option value="Extreme">Extreme</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">최대 인원</label>
+                <input 
+                  type="number" 
+                  name="maxMembers" 
+                  defaultValue={editingParty.max_members || editingParty.max_member || 1} 
+                  min={editingParty.party_members?.length || 1} 
+                  max={6} 
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                  required 
+                />
+                <p className="text-xs text-slate-500 mt-1">현재 참여 인원({editingParty.party_members?.length || 1}명)보다 적게 설정할 수 없습니다.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">출발 시간 (선택)</label>
+                {/* datetime-local 포맷에 맞게 slice(0, 16) 처리 */}
+                <input 
+                  type="datetime-local" 
+                  name="departureTime" 
+                  defaultValue={editingParty.departure_time ? editingParty.departure_time.slice(0, 16) : ''} 
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">파티 설명 / 메모</label>
+                <input 
+                  type="text" 
+                  name="description" 
+                  defaultValue={editingParty.description || ''} 
+                  placeholder="예: 출발 10분 전 디코 모임" 
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-indigo-500" 
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 mt-2 border-t border-slate-800">
+                <button type="button" onClick={() => setEditingParty(null)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2.5 rounded-lg text-sm font-bold transition">취소</button>
+                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg text-sm font-bold transition">저장하기</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
