@@ -108,7 +108,7 @@ export default async function DashboardPage({
           
           {/* 1. 내 캐릭터별 파티 스케줄 모아보기 (개인 스케줄러) */}
           <section>
-            <MySchedule myCharacters={myCharacters} parties={parties || []} />
+          <MySchedule myCharacters={myCharacters} parties={parties || []} currentUserId={user.id} />
           </section>
 
           {/* 2. 길드 주간 보스 스케줄 (2주치 세로 뷰) */}
